@@ -8,7 +8,3 @@ services:
     envVars:
       - key: SPENDWISE_DB_URL
         sync: false
-      - key: SPENDWISE_DB_USERNAME
-        sync: false
-      - key: SPENDWISE_DB_PASSWORD
-        sync: false

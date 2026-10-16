@@ -20,8 +20,8 @@ public final class HibernateUtil {
             } else {
                 // Render supplies these values at runtime, so a password never belongs in the deployed WAR.
                 addEnvironmentProperty(connectionProperties, "hibernate.connection.url", "SPENDWISE_DB_URL");
-                addEnvironmentProperty(connectionProperties, "hibernate.connection.username", "SPENDWISE_DB_USERNAME");
-                addEnvironmentProperty(connectionProperties, "hibernate.connection.password", "SPENDWISE_DB_PASSWORD");
+                addOptionalEnvironmentProperty(connectionProperties, "hibernate.connection.username", "SPENDWISE_DB_USERNAME");
+                addOptionalEnvironmentProperty(connectionProperties, "hibernate.connection.password", "SPENDWISE_DB_PASSWORD");
             }
             return new Configuration().configure().addProperties(connectionProperties).buildSessionFactory();
         } catch (IOException exception) {
@@ -37,6 +37,11 @@ public final class HibernateUtil {
             throw new IllegalStateException("Missing " + environmentName + ". Add it as a Render environment variable or use hibernate.properties locally.");
         }
         properties.setProperty(hibernateName, value);
+    }
+
+    private static void addOptionalEnvironmentProperty(Properties properties, String hibernateName, String environmentName) {
+        String value = System.getenv(environmentName);
+        if (value != null && !value.isBlank()) properties.setProperty(hibernateName, value);
     }
 
     // A SessionFactory is expensive, so the whole application shares this one instance.
