@@ -45,7 +45,7 @@ Render does not provide a native Java runtime, so this project uses a small Dock
 - `SPENDWISE_DB_USERNAME` — the Session pooler username, normally `postgres.<your-project-ref>`.
 - `SPENDWISE_DB_PASSWORD` — the database password you chose in Supabase.
 
-Copy the host and port from the **Session pooler → JDBC** card in Supabase's Connect dialog. Do not use a Supabase API URL, anon key, service-role key, or the transaction pooler. The `/health` endpoint runs `SELECT 1`; Render only marks the service healthy after both Tomcat and the database are reachable.
+Copy the host and port from the **Session pooler → JDBC** card in Supabase's Connect dialog. Do not use a Supabase API URL, anon key, service-role key, or the transaction pooler. At startup, SpendWise opens one safe JDBC connection before Hibernate starts. This makes a wrong URL or password fail with a precise server-side message instead of a later, vague Hibernate error. The `/health` endpoint then runs `SELECT 1`; Render only marks the service healthy after both Tomcat and the database are reachable.
 
 After pushing this repository to GitHub, create a Render Blueprint from the repository. Render reads `render.yaml`, builds the Docker image, and serves the application at `/dashboard`.
 
