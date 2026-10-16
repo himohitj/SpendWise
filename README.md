@@ -39,9 +39,13 @@ The schema enables Row Level Security and adds no public policies because this a
 
 ## Deploy to Render
 
-Render does not provide a native Java runtime, so this project uses a small Docker deployment image with Tomcat 10.1. The `Dockerfile` builds the WAR with Maven and then runs it as Tomcat's root application. `render.yaml` creates a web service and prompts for these secret runtime environment variables:
+Render does not provide a native Java runtime, so this project uses a small Docker deployment image with Tomcat 10.1. The `Dockerfile` builds the WAR and then runs it as Tomcat's root application. `render.yaml` creates a web service and prompts for these secret runtime environment variables:
 
-- `SPENDWISE_DB_URL` — the complete **Supabase Session pooler JDBC URL**. This is a Render secret, so it can safely contain the pooler username and database password. Ensure the URL includes `sslmode=require`.
+- `SPENDWISE_DB_URL` — the Supabase **Session pooler JDBC URL**, without `user` or `password` query parameters. The application automatically adds `sslmode=require` when it is missing.
+- `SPENDWISE_DB_USERNAME` — the Session pooler username, normally `postgres.<your-project-ref>`.
+- `SPENDWISE_DB_PASSWORD` — the database password you chose in Supabase.
+
+Copy the host and port from the **Session pooler → JDBC** card in Supabase's Connect dialog. Do not use a Supabase API URL, anon key, service-role key, or the transaction pooler. The `/health` endpoint runs `SELECT 1`; Render only marks the service healthy after both Tomcat and the database are reachable.
 
 After pushing this repository to GitHub, create a Render Blueprint from the repository. Render reads `render.yaml`, builds the Docker image, and serves the application at `/dashboard`.
 

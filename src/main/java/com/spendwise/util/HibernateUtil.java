@@ -19,7 +19,8 @@ public final class HibernateUtil {
                 connectionProperties.load(input);
             } else {
                 // Render supplies these values at runtime, so a password never belongs in the deployed WAR.
-                addEnvironmentProperty(connectionProperties, "hibernate.connection.url", "SPENDWISE_DB_URL");
+                String databaseUrl = requiredEnvironmentValue("SPENDWISE_DB_URL");
+                connectionProperties.setProperty("hibernate.connection.url", normalizePostgresUrl(databaseUrl));
                 addOptionalEnvironmentProperty(connectionProperties, "hibernate.connection.username", "SPENDWISE_DB_USERNAME");
                 addOptionalEnvironmentProperty(connectionProperties, "hibernate.connection.password", "SPENDWISE_DB_PASSWORD");
             }
@@ -31,17 +32,31 @@ public final class HibernateUtil {
         }
     }
 
-    private static void addEnvironmentProperty(Properties properties, String hibernateName, String environmentName) {
+    private static String requiredEnvironmentValue(String environmentName) {
         String value = System.getenv(environmentName);
         if (value == null || value.isBlank()) {
             throw new IllegalStateException("Missing " + environmentName + ". Add it as a Render environment variable or use hibernate.properties locally.");
         }
-        properties.setProperty(hibernateName, value);
+        return value.trim();
     }
 
     private static void addOptionalEnvironmentProperty(Properties properties, String hibernateName, String environmentName) {
         String value = System.getenv(environmentName);
         if (value != null && !value.isBlank()) properties.setProperty(hibernateName, value);
+    }
+
+    private static String normalizePostgresUrl(String databaseUrl) {
+        String jdbcUrl = databaseUrl;
+        if (jdbcUrl.startsWith("postgresql://") || jdbcUrl.startsWith("postgres://")) {
+            jdbcUrl = "jdbc:" + jdbcUrl;
+        }
+        if (!jdbcUrl.startsWith("jdbc:postgresql://")) {
+            throw new IllegalStateException("SPENDWISE_DB_URL must start with jdbc:postgresql:// (or postgresql://). Do not use a Supabase API URL or key.");
+        }
+        if (!jdbcUrl.contains("sslmode=")) {
+            jdbcUrl += jdbcUrl.contains("?") ? "&sslmode=require" : "?sslmode=require";
+        }
+        return jdbcUrl;
     }
 
     // A SessionFactory is expensive, so the whole application shares this one instance.
