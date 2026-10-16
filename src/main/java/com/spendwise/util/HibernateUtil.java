@@ -14,17 +14,29 @@ public final class HibernateUtil {
 
     private static SessionFactory buildSessionFactory() {
         try (InputStream input = HibernateUtil.class.getClassLoader().getResourceAsStream("hibernate.properties")) {
-            if (input == null) {
-                throw new IllegalStateException("hibernate.properties is missing. Copy hibernate.properties.example and add your database connection values.");
-            }
             Properties connectionProperties = new Properties();
-            connectionProperties.load(input);
+            if (input != null) {
+                connectionProperties.load(input);
+            } else {
+                // Render supplies these values at runtime, so a password never belongs in the deployed WAR.
+                addEnvironmentProperty(connectionProperties, "hibernate.connection.url", "SPENDWISE_DB_URL");
+                addEnvironmentProperty(connectionProperties, "hibernate.connection.username", "SPENDWISE_DB_USERNAME");
+                addEnvironmentProperty(connectionProperties, "hibernate.connection.password", "SPENDWISE_DB_PASSWORD");
+            }
             return new Configuration().configure().addProperties(connectionProperties).buildSessionFactory();
         } catch (IOException exception) {
             throw new ExceptionInInitializerError("Could not read hibernate.properties: " + exception.getMessage());
         } catch (Exception exception) {
             throw new ExceptionInInitializerError("SessionFactory creation failed: " + exception.getMessage());
         }
+    }
+
+    private static void addEnvironmentProperty(Properties properties, String hibernateName, String environmentName) {
+        String value = System.getenv(environmentName);
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("Missing " + environmentName + ". Add it as a Render environment variable or use hibernate.properties locally.");
+        }
+        properties.setProperty(hibernateName, value);
     }
 
     // A SessionFactory is expensive, so the whole application shares this one instance.

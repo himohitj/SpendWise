@@ -37,6 +37,18 @@ The schema enables Row Level Security and adds no public policies because this a
 3. Copy `target/spendwise.war` to Tomcat's `webapps` folder.
 4. Start Tomcat and open `http://localhost:8080/spendwise/dashboard`.
 
+## Deploy to Render
+
+Render does not provide a native Java runtime, so this project uses a small Docker deployment image with Tomcat 10.1. The `Dockerfile` builds the WAR with Maven and then runs it as Tomcat's root application. `render.yaml` creates a web service and prompts for these secret runtime environment variables:
+
+- `SPENDWISE_DB_URL` — the **Supabase Session pooler JDBC URL** with `sslmode=require`.
+- `SPENDWISE_DB_USERNAME` — the Session pooler username.
+- `SPENDWISE_DB_PASSWORD` — the Supabase database password.
+
+After pushing this repository to GitHub, create a Render Blueprint from the repository. Render reads `render.yaml`, builds the Docker image, and serves the application at `/dashboard`.
+
+This deployment is intentionally unauthenticated. Do not publish it as a real personal-finance product or store sensitive information until authentication and per-user authorization have been added.
+
 ## Important learning concepts
 
 - A **Servlet** has `doGet` for safe page reads and `doPost` for data changes.
