@@ -49,9 +49,9 @@ heroku create YOUR-UNIQUE-APP-NAME --stack container
 
 SpendWise currently uses PostgreSQL and reads these environment variables when there is no local `hibernate.properties` file in the packaged app:
 
-- `SPENDWISE_DB_URL`: JDBC URL, for example `jdbc:postgresql://HOST:5432/DATABASE?sslmode=require`.
-- `SPENDWISE_DB_USERNAME`: PostgreSQL username.
-- `SPENDWISE_DB_PASSWORD`: PostgreSQL password.
+- `SPENDWISE_DB_URL`: the Supabase **Session pooler JDBC URL**, without `user` or `password` query parameters. For example: `jdbc:postgresql://HOST:5432/postgres?sslmode=require`.
+- `SPENDWISE_DB_USERNAME`: the Supabase Session pooler username, normally `postgres.<your-project-ref>`.
+- `SPENDWISE_DB_PASSWORD`: the Supabase database password.
 
 Set them as Heroku config vars (never commit credentials):
 
@@ -61,7 +61,7 @@ heroku config:set SPENDWISE_DB_USERNAME="DATABASE_USERNAME" -a YOUR-UNIQUE-APP-N
 heroku config:set SPENDWISE_DB_PASSWORD="DATABASE_PASSWORD" -a YOUR-UNIQUE-APP-NAME
 ```
 
-The app already uses the PostgreSQL database configured for your current deployment; you can keep that database if it is reachable from Heroku and the schema matches. You do not need to provision Heroku Postgres just to host the web app. Verify your provider permits external connections, use its correct host/port/username, and retain SSL. Hibernate is configured with `hbm2ddl.auto=validate`; it does not create or migrate tables. If using a fresh database, run `sql/schema.sql` first and migrate data separately.
+SpendWise's current database is Supabase PostgreSQL. In Supabase, open **Connect → Session pooler → JDBC** and copy the host, port, and connection details. Use the Session pooler, not the transaction pooler. Remove any `user` and `password` query parameters from the URL because the app supplies those separately. The repository's `.dockerignore` excludes `src/main/resources/hibernate.properties`, so the Heroku image uses the config vars above even if you have a local credentials file. You do not need to provision Heroku Postgres just to host the web app. You can keep your existing Supabase database only if it is reachable from Heroku and the schema matches. Hibernate is configured with `hbm2ddl.auto=validate`; it does not create or migrate tables. If using a fresh database, run `sql/schema.sql` first and migrate data separately.
 
 ## 4. Build and deploy the Docker image
 
