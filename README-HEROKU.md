@@ -1,31 +1,59 @@
 # Deploy SpendWise to Heroku
 
-SpendWise is a Java 17 Maven WAR application (Jakarta Servlet/JSP) that runs on Tomcat 10.1 and connects to PostgreSQL through Hibernate.
+SpendWise is a Java 17 Maven WAR application using Jakarta Servlets/JSP, Hibernate 6, and PostgreSQL. It runs on Tomcat 10.1.
 
 ## Important security warning
 
-The current application has no authentication or per-user authorization. Anyone who can reach the public Heroku URL can potentially view, add, or delete the same finance data. Do not use real financial or personal data or share the URL publicly until authentication, authorization, and CSRF protection are implemented.
+The current application has no authentication or per-user authorization. Anyone who can reach the public Heroku URL can potentially view, add, or delete the same finance data. Deploy only with dummy/test data. Do not use real financial or personal data or share the URL publicly until authentication, authorization, and CSRF protection are implemented.
+
+## What this Heroku branch adds
+
+- `Dockerfile.web`: Heroku-specific Docker image, built from the existing Maven WAR.
+- `docker/heroku-entrypoint.sh`: configures Tomcat to listen on Heroku's runtime `PORT`.
+- The original `Dockerfile`, `docker/entrypoint.sh`, and `render.yaml` are left unchanged for the existing deployment.
 
 ## Prerequisites
 
-- A verified Heroku account with sufficient platform credits.
-- Heroku CLI.
-- Docker Desktop (running).
-- Access to the existing PostgreSQL database, or a separately prepared PostgreSQL database.
+- Heroku CLI installed and logged in.
+- Docker Desktop installed and running.
+- A PostgreSQL database with the SpendWise schema already applied.
+- Available Heroku credits / an eligible dyno plan.
 
-## Deploy using the Heroku Container Registry
+## 1. Get the Heroku-ready branch
 
-From the repository root:
+```bash
+git clone https://github.com/himohitj/SpendWise.git
+cd SpendWise
+git fetch origin
+git switch heroku-deployment
+```
+
+Or, if you already have the repository cloned:
+
+```bash
+git fetch origin
+git switch heroku-deployment
+git pull
+```
+
+## 2. Create the Heroku app
+
+Choose a globally unique app name:
 
 ```bash
 heroku login
 heroku create YOUR-UNIQUE-APP-NAME --stack container
-heroku container:login
-heroku container:push web -a YOUR-UNIQUE-APP-NAME -f Dockerfile.heroku
-heroku container:release web -a YOUR-UNIQUE-APP-NAME
 ```
 
-Configure the database connection variables. Supply the PostgreSQL JDBC URL and credentials from your database provider. Do not commit credentials:
+## 3. Configure the database
+
+SpendWise currently uses PostgreSQL and reads these environment variables when there is no local `hibernate.properties` file in the packaged app:
+
+- `SPENDWISE_DB_URL`: JDBC URL, for example `jdbc:postgresql://HOST:5432/DATABASE?sslmode=require`.
+- `SPENDWISE_DB_USERNAME`: PostgreSQL username.
+- `SPENDWISE_DB_PASSWORD`: PostgreSQL password.
+
+Set them as Heroku config vars (never commit credentials):
 
 ```bash
 heroku config:set SPENDWISE_DB_URL="jdbc:postgresql://HOST:5432/DATABASE?sslmode=require" -a YOUR-UNIQUE-APP-NAME
@@ -33,22 +61,37 @@ heroku config:set SPENDWISE_DB_USERNAME="DATABASE_USERNAME" -a YOUR-UNIQUE-APP-N
 heroku config:set SPENDWISE_DB_PASSWORD="DATABASE_PASSWORD" -a YOUR-UNIQUE-APP-NAME
 ```
 
-Then restart and inspect logs:
+The app already uses the PostgreSQL database configured for your current deployment; you can keep that database if it is reachable from Heroku and the schema matches. You do not need to provision Heroku Postgres just to host the web app. Verify your provider permits external connections, use its correct host/port/username, and retain SSL. Hibernate is configured with `hbm2ddl.auto=validate`; it does not create or migrate tables. If using a fresh database, run `sql/schema.sql` first and migrate data separately.
+
+## 4. Build and deploy the Docker image
+
+Run these commands from the repository root. The `--recursive` flag makes the Heroku CLI discover `Dockerfile.web` as the `web` process image:
 
 ```bash
-heroku restart -a YOUR-UNIQUE-APP-NAME
+heroku container:login
+heroku container:push web --recursive -a YOUR-UNIQUE-APP-NAME
+heroku container:release web -a YOUR-UNIQUE-APP-NAME
+```
+
+## 5. Check the deployment
+
+```bash
 heroku logs --tail -a YOUR-UNIQUE-APP-NAME
+heroku ps -a YOUR-UNIQUE-APP-NAME
 heroku open -a YOUR-UNIQUE-APP-NAME
 ```
 
-The application is deployed as the ROOT context. Open `https://YOUR-UNIQUE-APP-NAME.herokuapp.com/dashboard`.
+SpendWise is deployed as Tomcat's root application. Open:
 
-## Database notes
+`https://YOUR-UNIQUE-APP-NAME.herokuapp.com/dashboard`
 
-The application currently uses the existing PostgreSQL schema and Hibernate `validate` mode. This deployment does not automatically migrate data. Keep using the existing database only after verifying that the schema and credentials are correct. If you want a separate production database, provision it and run `sql/schema.sql` first; migrate data separately if required.
+If the app fails to start, check the logs for missing `SPENDWISE_DB_*` values, a PostgreSQL connection error, or schema validation failures.
 
-Heroku Container Registry deploys are documented at https://devcenter.heroku.com/articles/container-registry-and-runtime.
+## Database and storage notes
 
-## Keep deployments separate
+Heroku dyno filesystems are ephemeral. Do not store user uploads, database files, or application data on the local filesystem. SpendWise stores its finance records in PostgreSQL, so those records remain in the database across dyno restarts. This deploy does not copy or migrate any existing data.
 
-This branch adds a Heroku-specific Dockerfile and entrypoint. The original `Dockerfile`, `docker/entrypoint.sh`, and `render.yaml` are left unchanged for the current Render/Railway workflow.
+## Official Heroku documentation
+
+- [Container Registry & Runtime](https://devcenter.heroku.com/articles/container-registry-and-runtime)
+- [Heroku config vars](https://devcenter.heroku.com/articles/config-vars)
