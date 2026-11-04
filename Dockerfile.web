@@ -1,0 +1,19 @@
+# Heroku web process image. Kept separate from the existing Render/Railway Dockerfile.
+FROM maven:3.9.9-eclipse-temurin-17 AS build
+WORKDIR /app
+COPY pom.xml .
+RUN mvn -B -q -DskipTests dependency:go-offline
+COPY src ./src
+RUN mvn -B -q -DskipTests package
+
+FROM tomcat:10.1-jdk17-temurin
+RUN rm -rf /usr/local/tomcat/webapps/*
+COPY --from=build /app/target/spendwise.war /usr/local/tomcat/webapps/ROOT.war
+COPY docker/heroku-entrypoint.sh /entrypoint.sh
+# Heroku runs container processes as an unprivileged, dynamically assigned user.
+# Grant only the runtime paths Tomcat needs to modify write access.
+RUN chmod +x /entrypoint.sh \
+    && chmod a+w /usr/local/tomcat/conf/server.xml \
+    && chmod -R a+rwX /usr/local/tomcat/webapps /usr/local/tomcat/logs /usr/local/tomcat/temp /usr/local/tomcat/work
+EXPOSE 8080
+ENTRYPOINT ["/entrypoint.sh"]
